@@ -1,0 +1,151 @@
+---
+title: "Lipid Head Group Circular Dendrogram, All Lipids"
+author: "Melanie Odenkirk, Jeremy Ash"
+output:
+  html_document:
+    theme: united 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, cache = T)
+# You will need to replace with the path to the data directory on your machine
+knitr::opts_knit$set(root.dir = 'data/')
+  library(httr)
+  library(jsonlite)
+  library(fingerprint)
+  library(rcdk)
+  library(ggplot2)
+  library(ggtree)
+  library(ape)
+  library(phangorn)
+  library(limma)
+  library(digest)
+  library(factoextra)
+  library(NbClust)
+  library(reshape2)
+  library(scales)
+```
+
+
+
+```{r, include=FALSE}
+#Loading significant lipid clustering
+load("fp_all_lipid.rdata")
+tupgma <- upgma(fp.dist, method = "average")
+```
+
+# Healthy versus Pregnancy Disorders, all lipids
+
+## Statistical Analysis
+
+Lipids were assessed for statistical significance in a Disease (GDM or PRE) versus control comparison. Here, an alpha cut off of 0.05 was used with a Dunnett multiple testing correction. More information on this process is given in the methods section. 
+
+
+## Building p-value heatmaps of statistically significant lipids
+```{r pressure, echo=FALSE, include=FALSE}
+#Reading in lipid statistical Disease vs. Control Results
+pd_fn <- c("PRE vs. Ctrl", "GDM vs. Ctrl")
+
+fn <- pd_fn[1]
+sig.df <- data.frame(matrix(nrow = 319, ncol = length(pd_fn)))
+for( i in 1 : length(pd_fn)) {
+  fn <- pd_fn[i]
+  df1 <- read.csv(paste0(fn, "__Negative.csv"))
+  df2<- read.csv(paste0(fn, "__Positive.csv"))
+  df <- rbind(df1, df2)
+  sig.df[, i] <- (df$P_value_T_PD_vs_Ctrl * df$Flag_PD_vs_Ctrl) 
+  colnames(sig.df)[i] <- fn
+}
+
+
+sig.df$Name <- df$Name
+sig.df <- sig.df[c(3, 1:2)]
+
+lipids <- sig.df$Name
+sig.df$Name <- gsub("/", "_", sig.df$Name)
+
+
+sig.df <- unique(sig.df)
+
+duplicated(sig.df$Name)
+
+# Remove duplicated lipid identifications
+
+sig.df <- sig.df[-c(71), ]
+
+sig.df <- sig.df[-c(203, 204, 205, 207, 208, 209, 210, 211, 212, 214, 216, 217), ]
+
+rownames(sig.df) <- sig.df$Name
+
+sig.df$Name <- NULL
+
+sig.df[sig.df == 0] <- NA
+
+
+breaks <- seq(from=min(range(-0.05)), to=max(range(0.05)), length.out=1000)
+midpoint <- which.min(abs(breaks - 0))
+rampCol1 <- colorRampPalette(c("#00e8f0","#0d78ca", "#002060"))(midpoint)
+rampCol2 <- colorRampPalette(c( "#600000", "red", "#FF4D4D"))(1000-(midpoint))
+rampCols <- c(rampCol1,rampCol2)
+```
+
+
+## Integrating node annotation by lipid class
+```{r, echo=FALSE}
+#color by the property (For dyes it was color) 
+sig.df_1 <- sig.df
+
+#load all desc.
+cmpds <- read.csv("lipid_color_classification.csv", header= TRUE)
+
+#color by the property (Using HG classification)
+sortMat2 = cmpds
+
+##Need to normalize columns
+##scale() does this
+##use uncorrelated desc. file
+matTrans2 <- scale(sortMat2[,names(cmpds$Name)[2:ncol(cmpds)]])
+
+#colorby property (Property is desc. col. name like p-value)
+HG = cmpds$HG
+
+#cols for three tier plot
+#Easy control of color assignments. "Name" = "Color"
+#"Name" is the cell value inside original dataframe.
+
+
+cols10 =c("Cer" = "ghostwhite","Gal/GlcCer" = "purple", "SM" = "black", "PE" = "#F86624","PC" = "lightskyblue","PC O-" = "pink2", "PS" = "springgreen","PE O-" = "darkorchid4" ,"PE P-"="gold1", "PI" = "blue", "PG" = "forestgreen", "TG" = "maroon2", "DG" = "turquoise2", "PC P-" = "red")
+
+
+to_plot3= as.data.frame(cbind(sig.df_1[,c("PRE vs. Ctrl")], 
+                              sig.df_1[,c("GDM vs. Ctrl")])) 
+names(to_plot3)=c("PRE", "GDM")
+rownames(to_plot3) = rownames(sig.df_1)
+```
+
+
+## Disease vs. Control dendrogram
+
+```{r, echo=FALSE, fig.height=16, fig.width=16, message=FALSE, warning=FALSE}
+#Generate Circular Dendrogram
+t4 <- ggtree(tupgma, layout="circular", size=1.5)
+#%<+% is a pipe symbol to combine datasets more efficiently
+#merging circ. dend. w/ pvalue color assignments
+t4 <- t4 %<+% cmpds +
+  geom_tippoint(aes(color=HG), alpha=0.75, size=4)+
+  scale_color_manual(values =cols10) +
+  theme(legend.position="bottom",legend.text=element_text(size=10))+
+  theme(plot.margin = unit(c(0,0,0,0), "cm"))+
+  theme(text = element_text(size = 0.01)) +
+  geom_treescale(x = NULL, y = NULL, width = 0.5, offset = 30,
+                 color = "white", linesize = 1E-100, fontsize = 1E-100)
+t4 <- gheatmap(t4, to_plot3[2], offset = 0.01, width = 0.12, colnames =T, colnames_angle = 50)  + scale_fill_gradient2(low = rampCol1, high = rampCol2, mid = "#002060", na.value = "grey70", midpoint = 0)
+t4 <- gheatmap(t4, to_plot3[1], offset = 0.06, width = 0.12, colnames =T, colnames_angle = 50)  +
+  scale_fill_gradient2(low = rampCol1, high = rampCol2, mid = "#002060", na.value = "grey70", midpoint = 0)
+
+
+open_tree(t4, 50) %>% rotate_tree(50)
+```
+
+
+

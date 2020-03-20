@@ -1,0 +1,203 @@
+---
+title: "Metabolite Dendrogram"
+author: "Jeremy Ash, Melanie Odenkirk"
+output: 
+  html_document:
+
+    theme: united  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, cache = T)
+library(httr)
+library(jsonlite)
+library(fingerprint)
+library(rcdk)
+library(ggplot2)
+library(ggtree)
+library(ape)
+library(phangorn)
+library(limma)
+library(digest)
+library(pheatmap)
+library(dplyr)
+library(RColorBrewer)
+
+knitr::opts_knit$set(root.dir = 'data/')
+```
+
+
+# Healthy versus Pregnancy Disorders, all lipids
+
+## Statistical Analysis
+
+Lipids were assessed for statistical significance in a Disease (GDM or PRE) versus control comparison. Here, an alpha cut off of 0.05 was used with a Dunnett multiple testing correction. More information on this process is given in the methods section. 
+
+
+## Building p-value heatmaps of statistically significant lipids and parsing lipids by fatty acyl annotation
+```{r, message=FALSE, warning=FALSE}
+# Combine together data for healty verus control comparison
+# Combine negative and positve data sets
+
+pd_fn <- c("PRE vs. Ctrl", "GDM vs. Ctrl")
+
+fn <- pd_fn[1]
+sig.df <- data.frame(matrix(nrow = 319, ncol = length(pd_fn)))
+for (i in 1:length(pd_fn)) {
+  fn <- pd_fn[i]
+  df1 <- read.csv(paste0(fn, "__Negative.csv"))
+  df2 <- read.csv(paste0(fn, "__Positive.csv"))
+  df <- rbind(df1, df2)
+  sig.df[, i] <- (df$P_value_T_PD_vs_Ctrl* df$Flag_PD_vs_Ctrl) 
+  colnames(sig.df)[i] <- fn
+}
+
+sig.df$Name <- df$Name
+sig.df <- sig.df[c(3, 1:2)]
+
+lipids <- sig.df$Name
+sig.df$Name <- gsub("/", "_", sig.df$Name)
+
+#Drop the Bs and keep the As for now
+sig.df$Name <- gsub("_[A]$", "", sig.df$Name)
+sig.df <- sig.df[!grepl("_[B]$", sig.df$Name), ]
+
+# Split the rows with multiple potential lipids ids into 
+# separate entries
+for (i in 1:nrow(sig.df)) {
+  lipids <- unlist(strsplit(sig.df$Name[i], ";"))
+  if (length(lipids) > 1) {
+    r <- sig.df[i, ]
+    sig.df <- sig.df[-i, ]
+    mat <- data.frame(matrix(NA, nrow = length(lipids), ncol = ncol(sig.df)))
+    colnames(mat) <- colnames(sig.df)
+    for (j in 1:length(lipids)) {
+      mat[j, ] <- data.frame(Name = lipids[j], r[-1])
+    }
+    mat$Name <- lipids
+    sig.df <- rbind(sig.df, mat)
+  }
+}
+#Need to do this twice
+for (i in 1:nrow(sig.df)) {
+  lipids <- unlist(strsplit(sig.df$Name[i], ";"))
+  if (length(lipids) > 1) {
+    r <- sig.df[i, ]
+    sig.df <- sig.df[-i, ]
+    mat <- data.frame(matrix(NA, nrow = length(lipids), ncol = ncol(sig.df)))
+    colnames(mat) <- colnames(sig.df)
+    for (j in 1:length(lipids)) {
+      mat[j, ] <- data.frame(Name = lipids[j], r[-1])
+    }
+    mat$Name <- lipids
+    sig.df <- rbind(sig.df, mat)
+  }
+}
+
+for (i in 1:nrow(sig.df)) {
+  lipids <- unlist(strsplit(sig.df$Name[i], ";"))
+  if (length(lipids) > 1) {
+    r <- sig.df[i, ]
+    sig.df <- sig.df[-i, ]
+    mat <- data.frame(matrix(NA, nrow = length(lipids), ncol = ncol(sig.df)))
+    colnames(mat) <- colnames(sig.df)
+    for (j in 1:length(lipids)) {
+      mat[j, ] <- data.frame(Name = lipids[j], r[-1])
+    }
+    mat$Name <- lipids
+    sig.df <- rbind(sig.df, mat)
+  }
+}
+
+for (i in 1:nrow(sig.df)) {
+  lipids <- unlist(strsplit(sig.df$Name[i], ";"))
+  if (length(lipids) > 1) {
+    r <- sig.df[i, ]
+    sig.df <- sig.df[-i, ]
+    mat <- data.frame(matrix(NA, nrow = length(lipids), ncol = ncol(sig.df)))
+    colnames(mat) <- colnames(sig.df)
+    for (j in 1:length(lipids)) {
+      mat[j, ] <- data.frame(Name = lipids[j], r[-1])
+    }
+    mat$Name <- lipids
+    sig.df <- rbind(sig.df, mat)
+  }
+}
+
+sig.df <- unique(sig.df)
+
+duplicated(sig.df$Name)
+
+sig.df <- sig.df[-c(180, 181, 182, 184, 185, 186, 187, 188, 189, 190, 191, 193, 194, 235), ]
+
+rownames(sig.df) <- sig.df$Name
+
+sig.df[sig.df == 0] <- NA
+
+ab.set <- sig.df$Name
+ab.set <- sub(".*\\(" , "", ab.set)
+ab.set <- sub("\\).*" , "", ab.set)
+ab.set <- sub(".*-" , "", ab.set)
+ab.set <- sub("d" , "", ab.set)
+ab.set <-strsplit(ab.set, split = "_")
+ab.set <- unlist(ab.set)
+ab.set <- unique(ab.set)
+names(ab.set) <- c("group")
+FA <- c("0:0", "12:0", "14:0", "15:0", "16:0", "16:1", "17:0", "18:0", "18:1", "18:2", "18:3", "20:0", "20:1", "20:3", "20:4", "22:0", "22:4", "22:6")
+ab.set <- ab.set[order(match(ab.set, FA))]
+
+lipid.set <- data.frame(stringsAsFactors = F)
+l <- ab.set[1]
+for(l in ab.set) {
+  tmp <- sig.df$Name[grepl(l, sig.df$Name)]
+  lipid.set <- rbind(lipid.set, cbind(tmp, rep(l, length(tmp))))
+}
+
+colnames(lipid.set) <- c("lipids", "group")
+length(unique(lipid.set$group))
+table(lipid.set$group)
+
+highfreq.groups <- unique(lipid.set$group)[table(lipid.set$group) > 10]
+
+lipid.set.trim <- lipid.set[lipid.set$group %in% highfreq.groups, ]
+table(droplevels(lipid.set.trim$group))
+lipid.set.trim<- filter(lipid.set.trim, group != "8:0")
+
+sig.df.full <- merge(lipid.set.trim, sig.df, by.x = "lipids", by.y = "Name")
+
+head(sig.df.full)
+
+sig.df.full <- sig.df.full[order(sig.df.full$group), ]
+sig.df.mat <- sig.df.full[, -(1:2)]
+sig.df.mat <- data.matrix(sig.df.mat)
+
+group <- data.frame(sig.df.full$group)
+group <- droplevels(group)
+table(group)
+
+length(group)
+
+row.names(group) <- paste0(sig.df.full$lipids, sig.df.full$group, sep = ".")
+row.names(sig.df.mat) <- paste0(sig.df.full$lipids, sig.df.full$group, sep = ".")
+
+dim(sig.df.mat)
+length(group)
+```
+
+
+```{r}
+breaks <- seq(from=min(range(-0.05)), to=max(range(0.05)), length.out=1000)
+midpoint <- which.min(abs(breaks - 0))
+rampCol1 <- colorRampPalette(c("#00e8f0","#0d78ca", "#002060"))(midpoint)
+rampCol2 <- colorRampPalette(c( "#600000", "red", "#FF4D4D"))(1000-(midpoint))
+rampCols <- c(rampCol1,rampCol2)
+
+pheatmap(sig.df.mat,color = rampCols, breaks = breaks, annotation_row = group, gaps_col ="1", cellwidth = 50, cellheight = 10, treeheight_row = 100, treeheight_col = 100,  cluster_row = F, cluster_col = F, fontsize = 10, legend = T, filename = "FA clustering_tail length order_ALL_Lipids.tiff") 
+
+sig.df.nonzero <- sig.df.mat[!(rowSums(is.na(sig.df.mat))==NCOL(sig.df.mat)),] 
+
+pheatmap(sig.df.nonzero, color = rampCols, breaks = breaks,annotation_row = group, gaps_col ="1", cellwidth = 50, cellheight = 10, treeheight_row = 100, treeheight_col = 100,  cluster_row = F, cluster_col = F, fontsize = 10, legend = T, filename = "FA clustering_tail length order_SIG_Lipids.png")
+
+```
+
+
