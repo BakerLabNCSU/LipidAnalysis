@@ -92,27 +92,14 @@ rampCols <- c(rampCol1,rampCol2)
 
 ## Integrating node annotation by lipid class
 ```{r, echo=FALSE}
-#color by the property (For dyes it was color) 
-sig.df_1 <- sig.df
 
-#load all desc.
+sig.df_1 <- sig.df
 cmpds <- read.csv("lipid_color_classification.csv", header= TRUE)
 
 #color by the property (Using HG classification)
 sortMat2 = cmpds
 
-##Need to normalize columns
-##scale() does this
-##use uncorrelated desc. file
-matTrans2 <- scale(sortMat2[,names(cmpds$Name)[2:ncol(cmpds)]])
-
-#colorby property (Property is desc. col. name like p-value)
 HG = cmpds$HG
-
-#cols for three tier plot
-#Easy control of color assignments. "Name" = "Color"
-#"Name" is the cell value inside original dataframe.
-
 
 cols10 =c("Cer" = "ghostwhite","Gal/GlcCer" = "purple", "SM" = "black", "PE" = "#F86624","PC" = "lightskyblue","PC O-" = "pink2", "PS" = "springgreen","PE O-" = "darkorchid4" ,"PE P-"="gold1", "PI" = "blue", "PG" = "forestgreen", "TG" = "maroon2", "DG" = "turquoise2", "PC P-" = "red")
 
