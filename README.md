@@ -1,4 +1,4 @@
-# An In-depth Assessment of the Molecular Signatures of Preeclampsia and Gestational Diabetes Mellitus Utilizing 
+# Unveiling molecular signatures of preeclampsia and gestational diabetes mellitus with multi-omics and innovative cheminformatics visualization tools
 Multi-Omics Analyses and Innovative Visualization Tools
 
 *Melanie T. Odenkirk, Kelly G. Stratton, Marina A. Gritsenko, Lisa M. Bramer, Bobbie-Jo Webb-Robertson, 
