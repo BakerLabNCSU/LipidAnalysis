@@ -2,7 +2,7 @@
 Multi-Omics Analyses and Innovative Visualization Tools
 
 *Melanie T. Odenkirk, Kelly G. Stratton, Marina A. Gritsenko, Lisa M. Bramer, Bobbie-Jo Webb-Robertson, 
-Jennifer Kyle, Kent J. Bloodsworth, Karl K. Weitz, Jeremy Ash, Denis Fourches, Brandie D. Taylor, 
+Kent J. Bloodsworth, Karl K. Weitz, Jeremy Ash, Denis Fourches, Brandie D. Taylor, 
 Kristin E. Burnum-Johnson, Erin S. Baker*
 
 ## Usage
